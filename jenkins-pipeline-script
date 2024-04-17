@@ -1,0 +1,52 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_REPO = 'abhaypande/flask-jenkins'
+    }
+    stages {
+        stage('Git Clone on node01') {
+            agent { label 'node01' }
+            steps {
+                git branch: 'master', url: 'http://3.88.217.96:3000/abhaypande/Flask-redis-with-docker-compose.git'
+            }
+        }
+        stage('Docker build') {
+            agent { label 'node01' }
+            steps {
+                sh "docker build -t ${DOCKER_REPO}:${BUILD_NUMBER} ."
+            }
+        }
+        stage('Docker push') {
+            agent { label 'node01' }
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: '6cae52d6-396d-4cb8-9837-9a8dae7b3d90') {
+                        sh "docker push ${DOCKER_REPO}:${BUILD_NUMBER}"
+                    }
+                }
+            }
+        }
+        stage('Git Clone on node02') {
+            agent { label 'node02' }
+            steps {
+                git branch: 'master', url: 'http://3.88.217.96:3000/abhaypande/Flask-redis-with-docker-compose.git'
+            }
+        }
+        stage('Update Docker Compose File') {
+            agent { label 'node02' }
+            steps {
+                script {
+                    sh "sed -i 's|image: ${DOCKER_REPO}:|image: ${DOCKER_REPO}:${BUILD_NUMBER}|' docker-compose.yml"
+                }
+            }
+        }
+        stage('Deploy Docker Stack') {
+            agent { label 'node02' }
+            steps {
+                script {
+                    sh "docker stack deploy -c docker-compose.yml demo-stack"
+                }
+            }
+        }
+    }
+}

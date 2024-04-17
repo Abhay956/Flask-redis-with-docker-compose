@@ -1,6 +1,6 @@
   services:
     web:
-      image: myapp
+      image: abhaypande/flask-jenkins
       build: .
       ports:
         - "8000:8000"
